@@ -1,6 +1,9 @@
+from typing import Any
 import requests
 from enum import Enum
 
+
+    
 class BattleNetAPI:
     class REGION(Enum):
         US = "us"
@@ -8,36 +11,51 @@ class BattleNetAPI:
         APAC = "apac"
         CN = "cn"
 
-    AUTH_DOMAIN_NAME = "oauth.battle.net"
+    class AUTH_REGION(Enum):
+        US_EU_APAC = 1
+        CN = 2
+
+    AUTH_URLS = {
+        AUTH_REGION.US_EU_APAC: "https://oauth.battle.net//token",
+        AUTH_REGION.CN: "https://oauth.battlenet.com.cn/token"
+    }
+
     API_DOMAIN_NAME = "api.blizzard.com"
 
-    def __init__(self, client_id: str, client_secret: str, region: REGION): 
-        self.client_id = client_id
-        self.client_secret = client_secret
+    REALMS_INDEX_ROUTE = "/data/wow/connected-realm/index"
+
+    def __init__(self, token: str, region: REGION, custom_url: str = "", port: int = 443):
         self.region = region
-        self.token = self.get_access_token()
+        if custom_url == "":
+            self.api_url = f"https://{self.region.value}.{self.API_DOMAIN_NAME}"
+        else:
+            self.api_url = custom_url
+        self.port = port
 
-    def get_access_token(self):
-        url = f"{self.AUTH_DOMAIN_NAME}/token"
-        data = {"grant_type": "client_credentials"}
-        response = requests.post(url, data=data, auth=(self.client_id, self.client_secret))
-        response.raise_for_status()
-        return response.json()["access_token"]
+    def set_auth_domain_name(self, auth_domain_name: str):
+        self.auth_domain_name = auth_domain_name
 
-    def get(self, endpoint: str, params: dict[str, str] = {}):
-        params["access_token"] = self.token
-        url = f"https://{self.region}{self.API_DOMAIN_NAME}{endpoint}"
-        response = requests.get(url, params=params)
+    def set_api_domain_name(self, api_domain_name: str):
+        self.api_url = api_domain_name
+
+    def set_port(self, port: int):
+        self.port = port        
+
+    def get(self, endpoint: str, params: dict[str, str] = {}) -> Any:
+        response = requests.get(f"{self.api_url}:{self.port}{endpoint}",
+                                headers={"Authorization": "Bearer {self.token}"}, params=params)
         response.raise_for_status()
         return response.json()
 
-    # Example: Get WoW profile
-    def get_wow_profile(self, realm, character_name):
-        endpoint = f"/profile/wow/character/{realm}/{character_name.lower()}"
-        params = {"namespace": f"profile-{self.region}", "locale": "en_US"}
-        return self.get(endpoint, params)
+    def get_connected_realms(self) -> None:
+        params = {"namespace": f"dynamic-{self.region}", "locale": "en_US"}
+        response = self.get(self.REALMS_INDEX_ROUTE, params)
+        print(response)
 
-# Example usage:
-# api = BattleNetAPI("your_client_id", "your_client_secret")
-# profile = api.get_wow_profile("realm-name", "character-name")
-# print(profile)
+def auth_custom(client_id: str, client_secret: str, url: str, port: int) -> str:
+    response = requests.post(f"{url}:{port}/oauth/token", data={"grant_type": "client_credentials"}, auth=(client_id, client_secret))
+    response.raise_for_status()
+    return response.json()["access_token"]
+
+def auth(client_id: str, client_secret: str, auth_region: BattleNetAPI.AUTH_REGION) -> str:
+    return auth_custom(client_id, client_secret, BattleNetAPI.AUTH_URLS[auth_region], 443)
