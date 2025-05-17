@@ -6,7 +6,7 @@ import battlenet as battlenet
 # Flask app to mock BattleNet API
 app = Flask(__name__)
 
-@app.route('/oauth/token', methods=['POST'])
+@app.route('/token', methods=['POST'])
 def oauth_token():
     return jsonify({
         "access_token": "mock_access_token",
@@ -32,27 +32,29 @@ def run_flask_app():
     app.run(port=8000, use_reloader=False)
 
 class TestAll(unittest.TestCase):
-    def test_all(self):
-        token = battlenet.auth_custom(
+    def test_01_test_auth(self):
+        # Test the auth function
+        session = battlenet.auth(
             client_id="mock_client_id",
             client_secret="mock_client_secret",
-            url="http://localhost",
-            port=8000
+            region=battlenet.REGION.US,
+            auth_domain="localhost",
+            api_domain="localhost",
+            port=8000,
+            https=False
         )
-
-        bnet = battlenet.BattleNetAPI(
-            token=token,
-            region=battlenet.BattleNetAPI.REGION.US,
-            custom_url="http://localhost",
-            port=8000
-        )
-
-        bnet.get_connected_realms()
-
+        self.assertIsInstance(session, battlenet.Session)
+        self.assertEqual(session.region, battlenet.REGION.US)
+        self.assertEqual(session.full_api_domain, "localhost")
+        self.assertEqual(session.port, 8000)
 
 if __name__ == '__main__':
     flask_thread = threading.Thread(target=run_flask_app)
     flask_thread.daemon = True
     flask_thread.start()
+
+    # Give the Flask app a moment to start
+    import time
+    time.sleep(1)
 
     unittest.main()
