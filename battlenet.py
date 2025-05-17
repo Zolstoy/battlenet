@@ -21,6 +21,7 @@ REALMS_INDEX_ROUTE = "/data/wow/connected-realm/index"
 
 class Session:
     def __init__(self, token: str, region: REGION, api_domain: str = "", port: int = 443):
+        self.token = token
         self.region = region
         if api_domain == "":
             self.full_api_domain = f"{self.region.value}.{API_DOMAIN}"
