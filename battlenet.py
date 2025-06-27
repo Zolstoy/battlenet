@@ -73,5 +73,3 @@ def auth(client_id: str, client_secret: str, region: REGION,
     if token is None:
         raise ValueError("Failed to obtain access token from BattleNet API")
     return Session(token, region, api_domain, port)
-
-    
